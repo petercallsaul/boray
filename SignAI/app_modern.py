@@ -24,7 +24,14 @@ from tkinter import (
 )
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 
-# Initialize CustomTkinter Dark Theme
+# Initialize CustomTkinter Dark Theme & High-Performance Rendering
+ctk.deactivate_automatic_dpi_awareness()
+try:
+    from customtkinter.windows.widgets.core_rendering import draw_engine
+    draw_engine.DrawEngine.preferred_drawing_method = "polygon_shapes"
+except Exception:
+    pass
+
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
@@ -347,11 +354,23 @@ class SignAIModernApp:
             except Exception:
                 pass
 
-        # Video capture & tracking
+        # Threaded video capture & perception pipeline state
+        self.frame_lock = threading.Lock()
+        self._latest_frame_rgb = None
+        self.perception_thread = None
+
         if start_loop:
-            self.cap = cv.VideoCapture(0)
-            self.cap.set(cv.CAP_PROP_FRAME_WIDTH, 640)
-            self.cap.set(cv.CAP_PROP_FRAME_HEIGHT, 480)
+            # On Windows, cv.CAP_DSHOW prevents the 20-second MSMF device enumeration freeze
+            if sys.platform.startswith("win"):
+                self.cap = cv.VideoCapture(0, cv.CAP_DSHOW)
+                if not self.cap.isOpened():
+                    self.cap = cv.VideoCapture(0)
+            else:
+                self.cap = cv.VideoCapture(0)
+
+            if self.cap is not None and self.cap.isOpened():
+                self.cap.set(cv.CAP_PROP_FRAME_WIDTH, 640)
+                self.cap.set(cv.CAP_PROP_FRAME_HEIGHT, 480)
         else:
             self.cap = None
 
@@ -387,11 +406,12 @@ class SignAIModernApp:
         self.root.bind_all("<Key-M>", self._toggle_mode)
         self.root.bind_all("<F1>", self._toggle_mode)
         self.root.bind_all("<F2>", lambda e: self._open_guide_modal())
+        self.root.bind_all("<F11>", self._toggle_fullscreen)
 
-        # Start continuous video loop
+        # Start continuous video & perception pipeline
         self.is_running = start_loop
-        if start_loop and self.cap is not None:
-            self._run_video_loop()
+        if start_loop and self.cap is not None and self.cap.isOpened():
+            self._start_perception_pipeline()
 
     def _load_csv_labels(self, path):
         labels = []
@@ -1110,15 +1130,44 @@ class SignAIModernApp:
         self._render_transcript()
 
     # --------------------------------------------------------------------------
-    # Real-Time Perception & Gesture Classification Loop
+    # Real-Time Perception & Gesture Classification Loop (Threaded Architecture)
     # --------------------------------------------------------------------------
 
-    def _run_video_loop(self):
-        if not self.is_running:
-            return
+    def _toggle_fullscreen(self, event=None):
+        is_fullscreen = bool(self.root.attributes("-fullscreen"))
+        self.root.attributes("-fullscreen", not is_fullscreen)
 
-        ret, frame = self.cap.read()
-        if ret:
+    def _start_perception_pipeline(self):
+        if not self.is_running:
+            self.is_running = True
+        if self.perception_thread is None or not self.perception_thread.is_alive():
+            self.perception_thread = threading.Thread(target=self._perception_worker, daemon=True)
+            self.perception_thread.start()
+        self._ui_video_tick()
+
+    def _run_video_loop(self):
+        self._start_perception_pipeline()
+
+    def _handle_committed_sign(self, sign):
+        if sign in ["finish", "نقطة"]:
+            self._submit_sentence()
+        elif sign in ["space", "مسافة"]:
+            self._enter_text(" ")
+        elif sign in ["delete", "مسح"]:
+            self._delete_char()
+        else:
+            if self.current_mode == "WORDS":
+                self._enter_text(sign + " ")
+            else:
+                self._enter_text(sign)
+
+    def _perception_worker(self):
+        while self.is_running and self.cap is not None and self.cap.isOpened():
+            ret, frame = self.cap.read()
+            if not ret or frame is None:
+                time.sleep(0.01)
+                continue
+
             if self.mirror_view:
                 frame = cv.flip(frame, 1)
 
@@ -1133,8 +1182,8 @@ class SignAIModernApp:
             raw_confidence = 0.0
             display_text = ""
             hold_progress = 0.0
-            hold_threshold = self.hold_threshold_var.get()
-            min_confidence = self.confidence_threshold_var.get()
+            hold_threshold = float(self.hold_threshold_var.get())
+            min_confidence = float(self.confidence_threshold_var.get())
 
             # Persistent Mode Badge on Camera Feed
             mode_badge_text = "إشارات عيادة الأسنان" if self.current_mode == "WORDS" else "الحروف الأبجدية"
@@ -1190,7 +1239,6 @@ class SignAIModernApp:
                     display_text = "مسح"
                 else:
                     if self.current_mode == "WORDS":
-                        # Check C-pain aperture check
                         c_pain = check_dental_c_pain(results.multi_hand_landmarks[0])
                         if c_pain is not None:
                             raw_sign, raw_confidence = c_pain
@@ -1238,19 +1286,9 @@ class SignAIModernApp:
                     hold_progress = min(1.0, elapsed / hold_threshold)
 
                     if elapsed >= hold_threshold and not self.sign_already_committed:
-                        # Commit action
-                        if sign in ["finish", "نقطة"]:
-                            self._submit_sentence()
-                        elif sign in ["space", "مسافة"]:
-                            self._enter_text(" ")
-                        elif sign in ["delete", "مسح"]:
-                            self._delete_char()
-                        else:
-                            if self.current_mode == "WORDS":
-                                self._enter_text(sign + " ")
-                            else:
-                                self._enter_text(sign)
-
+                        # Schedule commit action on the main UI thread safely
+                        committed = sign
+                        self.root.after(0, lambda s=committed: self._handle_committed_sign(s))
                         self.sign_already_committed = True
                 else:
                     if self.candidate_start_time and (current_time - self.last_valid_time > self.grace_period):
@@ -1291,21 +1329,38 @@ class SignAIModernApp:
                 self.current_fps = self.fps_counter / (current_time - self.fps_start_time)
                 self.fps_counter = 0
                 self.fps_start_time = current_time
-                self.lbl_status_perf.configure(
-                    text=f"FPS: {self.current_fps:.1f} | INFERENCE: {self.last_inference_ms:.1f} ms"
-                )
 
-            # Update Tkinter Camera Display
+            # Transfer frame to UI thread safely
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+            with self.frame_lock:
+                self._latest_frame_rgb = frame_rgb
+
+    def _ui_video_tick(self):
+        if not self.is_running:
+            return
+
+        with self.frame_lock:
+            frame_rgb = self._latest_frame_rgb
+
+        if frame_rgb is not None:
             img_pil = Image.fromarray(frame_rgb)
             img_tk = ImageTk.PhotoImage(image=img_pil)
             self.lbl_camera.imgtk = img_tk
             self.lbl_camera.configure(image=img_tk)
 
-        self.root.after(16, self._run_video_loop)
+            self.lbl_status_perf.configure(
+                text=f"FPS: {self.current_fps:.1f} | INFERENCE: {self.last_inference_ms:.1f} ms"
+            )
+
+        self.root.after(16, self._ui_video_tick)
 
     def close(self):
         self.is_running = False
+        if hasattr(self, 'perception_thread') and self.perception_thread is not None and self.perception_thread.is_alive():
+            try:
+                self.perception_thread.join(timeout=0.3)
+            except Exception:
+                pass
         if self.cap is not None and self.cap.isOpened():
             self.cap.release()
         self.tts_engine.stop()
@@ -1313,6 +1368,13 @@ class SignAIModernApp:
 
 
 def main():
+    ctk.deactivate_automatic_dpi_awareness()
+    try:
+        from customtkinter.windows.widgets.core_rendering import draw_engine
+        draw_engine.DrawEngine.preferred_drawing_method = "polygon_shapes"
+    except Exception:
+        pass
+
     ctk.set_appearance_mode("Dark")
     ctk.set_default_color_theme("blue")
     root = ctk.CTk()

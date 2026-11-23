@@ -73,5 +73,47 @@ class TestAppModern(unittest.TestCase):
         os.remove(filepath)
         os.rmdir(out_dir)
 
+    def test_threaded_pipeline_state_and_sign_commit(self):
+        from tkinter import Tk
+        from app_modern import SignAIModernApp
+        root = Tk()
+        root.withdraw()
+        app = SignAIModernApp(root, start_loop=False)
+
+        # Check threaded perception state
+        self.assertIsNone(app.perception_thread)
+        self.assertIsNotNone(app.frame_lock)
+        self.assertIsNone(app._latest_frame_rgb)
+
+        # Test safe main-thread committed sign handler
+        app._handle_committed_sign("ألم")
+        self.assertEqual(app.expression, "ألم ")
+        app._handle_committed_sign("خفيف")
+        self.assertEqual(app.expression, "ألم خفيف ")
+        app._handle_committed_sign("delete")
+        self.assertEqual(app.expression, "ألم ")
+        app._handle_committed_sign("finish")
+        self.assertEqual(app.expression, "")
+        self.assertEqual(len(app.dialogue_mgr.get_messages()), 1)
+        self.assertEqual(app.dialogue_mgr.get_messages()[0]["text"], "ألم")
+
+        app.close()
+
+    def test_fullscreen_toggle(self):
+        from tkinter import Tk
+        from app_modern import SignAIModernApp
+        root = Tk()
+        root.withdraw()
+        app = SignAIModernApp(root, start_loop=False)
+
+        init_fs = bool(root.attributes("-fullscreen"))
+        app._toggle_fullscreen()
+        self.assertEqual(bool(root.attributes("-fullscreen")), not init_fs)
+        app._toggle_fullscreen()
+        self.assertEqual(bool(root.attributes("-fullscreen")), init_fs)
+
+        app.close()
+
+
 if __name__ == '__main__':
     unittest.main()
