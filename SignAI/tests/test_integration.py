@@ -24,12 +24,20 @@ class TestIntegration(unittest.TestCase):
         self.assertEqual(self.app.expression, "")
         self.assertTrue(self.app.tts_enabled_var.get())
         self.assertEqual(self.app.hold_threshold_var.get(), 1.5)
+        self.assertIsNotNone(self.app.hands, "MediaPipe hands pipeline must not be None")
+        self.assertIsNotNone(self.app.photo_dental, "Dental reference poster must be loaded")
+        self.assertIsNotNone(self.app.photo_alphabet, "Alphabet reference poster must be loaded")
 
     def test_mode_toggle(self):
         self.app._toggle_mode()
         self.assertEqual(self.app.current_mode, "LETTERS")
+        self.assertIn("الحروف الأبجدية", self.app.lbl_chart_title.cget("text"))
+        self.assertEqual(self.app.lbl_reference_chart.image, self.app.photo_alphabet)
+
         self.app._toggle_mode()
         self.assertEqual(self.app.current_mode, "WORDS")
+        self.assertIn("إشارات عيادة الأسنان", self.app.lbl_chart_title.cget("text"))
+        self.assertEqual(self.app.lbl_reference_chart.image, self.app.photo_dental)
 
     def test_composer_actions(self):
         self.app._enter_text("ألم ")

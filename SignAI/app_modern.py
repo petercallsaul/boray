@@ -297,6 +297,27 @@ class SignAIModernApp:
         self.alphabet_labels = self._load_csv_labels('model/keypoint_classifier/keypoint_classifier_label.csv')
         self.word_labels = self._load_csv_labels('model/word_classifier/word_classifier_label.csv')
 
+        # Load Reference Chart Posters
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        dental_img_path = os.path.join(base_dir, "images", "dental_signs.png")
+        alpha_img_path = os.path.join(base_dir, "images", "arabic_alphabet.jpg")
+
+        self.photo_dental = None
+        self.photo_alphabet = None
+        if os.path.exists(dental_img_path):
+            try:
+                chart_d = Image.open(dental_img_path).resize((340, 540), Image.Resampling.LANCZOS)
+                self.photo_dental = ImageTk.PhotoImage(chart_d, master=self.root)
+            except Exception:
+                pass
+
+        if os.path.exists(alpha_img_path):
+            try:
+                chart_a = Image.open(alpha_img_path).resize((340, 540), Image.Resampling.LANCZOS)
+                self.photo_alphabet = ImageTk.PhotoImage(chart_a, master=self.root)
+            except Exception:
+                pass
+
         # Video capture & tracking
         if start_loop:
             self.cap = cv.VideoCapture(0)
@@ -419,7 +440,7 @@ class SignAIModernApp:
         main_container = Frame(self.root, bg="#09090b")
         main_container.pack(fill="both", expand=True, padx=12, pady=4)
 
-        # Column 1: Video HUD & Parameter Sliders (Left, 580px)
+        # Column 1: Video HUD & Parameter Sliders (Left, 540px)
         col_video = Frame(main_container, bg="#141416", highlightbackground="#27272a", highlightthickness=1)
         col_video.pack(side="left", fill="both", expand=False, padx=(0, 6), pady=4)
 
@@ -446,7 +467,7 @@ class SignAIModernApp:
             troughcolor="#27272A",
             activebackground="#10B981",
             highlightthickness=0,
-            length=320
+            length=300
         )
         self.slider_hold.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(2, 6))
 
@@ -466,21 +487,21 @@ class SignAIModernApp:
             troughcolor="#27272A",
             activebackground="#10B981",
             highlightthickness=0,
-            length=320
+            length=300
         )
         self.slider_conf.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(2, 6))
 
-        # Column 2: Composer & Direct Action Controls (Center, 420px)
-        col_composer = Frame(main_container, bg="#141416", highlightbackground="#27272a", highlightthickness=1)
-        col_composer.pack(side="left", fill="both", expand=True, padx=6, pady=4)
+        # Column 2: Composer & Clinical Dialogue (Center, ~440px)
+        col_center = Frame(main_container, bg="#141416", highlightbackground="#27272a", highlightthickness=1)
+        col_center.pack(side="left", fill="both", expand=True, padx=6, pady=4)
 
-        lbl_comp_title = Label(col_composer, text="صياغة رسالة المريض (Composer)", font=("Segoe UI", 11, "bold"), fg="#F4F4F5", bg="#141416")
-        lbl_comp_title.pack(anchor="ne", padx=14, pady=(10, 4))
+        lbl_comp_title = Label(col_center, text="صياغة رسالة المريض (Composer)", font=("Segoe UI", 11, "bold"), fg="#F4F4F5", bg="#141416")
+        lbl_comp_title.pack(anchor="ne", padx=14, pady=(8, 2))
 
         # Large RTL Arabic entry
         self.entry_composer = Entry(
-            col_composer,
-            font=("Segoe UI", 20, "bold"),
+            col_center,
+            font=("Segoe UI", 18, "bold"),
             fg="#FFFFFF",
             bg="#1E1E22",
             insertbackground="#10B981",
@@ -490,11 +511,11 @@ class SignAIModernApp:
             highlightcolor="#10B981",
             highlightthickness=1
         )
-        self.entry_composer.pack(fill="x", padx=14, pady=6, ipady=6)
+        self.entry_composer.pack(fill="x", padx=14, pady=4, ipady=4)
         self.entry_composer.bind("<Return>", lambda e: self._submit_sentence())
 
         # Action Buttons
-        btn_action_frame = Frame(col_composer, bg="#141416")
+        btn_action_frame = Frame(col_center, bg="#141416")
         btn_action_frame.pack(fill="x", padx=14, pady=4)
 
         btn_submit = Button(
@@ -505,11 +526,11 @@ class SignAIModernApp:
             fg="#09090B",
             activebackground="#059669",
             relief="flat",
-            padx=10,
-            pady=4,
+            padx=8,
+            pady=3,
             command=self._submit_sentence
         )
-        btn_submit.pack(side="right", padx=3)
+        btn_submit.pack(side="right", padx=2)
 
         btn_space = Button(
             btn_action_frame,
@@ -519,11 +540,11 @@ class SignAIModernApp:
             fg="#E4E4E7",
             activebackground="#3F3F46",
             relief="flat",
-            padx=10,
-            pady=4,
+            padx=8,
+            pady=3,
             command=lambda: self._enter_text(" ")
         )
-        btn_space.pack(side="right", padx=3)
+        btn_space.pack(side="right", padx=2)
 
         btn_backspace = Button(
             btn_action_frame,
@@ -533,11 +554,11 @@ class SignAIModernApp:
             fg="#E4E4E7",
             activebackground="#3F3F46",
             relief="flat",
-            padx=8,
-            pady=4,
+            padx=6,
+            pady=3,
             command=self._delete_char
         )
-        btn_backspace.pack(side="right", padx=3)
+        btn_backspace.pack(side="right", padx=2)
 
         btn_clear = Button(
             btn_action_frame,
@@ -547,19 +568,22 @@ class SignAIModernApp:
             fg="#E4E4E7",
             activebackground="#3F3F46",
             relief="flat",
-            padx=8,
-            pady=4,
+            padx=6,
+            pady=3,
             command=self._clear_composer
         )
-        btn_clear.pack(side="right", padx=3)
+        btn_clear.pack(side="right", padx=2)
 
-        # Quick Dental Phrases Section
-        lbl_quick = Label(col_composer, text="إشارات عيادة الأسنان السريعة:", font=("Segoe UI", 10, "bold"), fg="#10B981", bg="#141416")
-        lbl_quick.pack(anchor="ne", padx=14, pady=(12, 4))
+        # Quick Palette Section (Dynamically toggles between Words and Letters!)
+        self.f_quick_container = Frame(col_center, bg="#141416")
+        self.f_quick_container.pack(fill="x", padx=14, pady=4)
 
-        quick_grid = Frame(col_composer, bg="#141416")
-        quick_grid.pack(fill="x", padx=14, pady=2)
-
+        # Dental phrases frame
+        self.f_quick_words = Frame(self.f_quick_container, bg="#141416")
+        lbl_quick_w = Label(self.f_quick_words, text="إشارات عيادة الأسنان السريعة:", font=("Segoe UI", 9, "bold"), fg="#10B981", bg="#141416")
+        lbl_quick_w.pack(anchor="ne", pady=(0, 2))
+        grid_w = Frame(self.f_quick_words, bg="#141416")
+        grid_w.pack(fill="x")
         dental_presets = [
             ("أشعر بألم", "أشعر بألم "),
             ("ألم خفيف", "ألم خفيف "),
@@ -570,113 +594,86 @@ class SignAIModernApp:
             ("اريد التحدث", "اريد أن اتحدث "),
             ("أحك وجهي", "اريد أن أحك وجهي ")
         ]
-
         for i, (btn_text, phrase) in enumerate(dental_presets):
-            row = i // 2
-            col = i % 2
             b = Button(
-                quick_grid,
-                text=btn_text,
-                font=("Segoe UI", 9),
-                bg="#1E1E22",
-                fg="#F4F4F5",
-                activebackground="#27272A",
-                relief="flat",
-                highlightbackground="#27272A",
-                highlightthickness=1,
-                padx=8,
-                pady=6,
-                command=lambda p=phrase: self._enter_text(p)
+                grid_w, text=btn_text, font=("Segoe UI", 8), bg="#1E1E22", fg="#F4F4F5",
+                activebackground="#27272A", relief="flat", highlightbackground="#27272A",
+                highlightthickness=1, padx=4, pady=4, command=lambda p=phrase: self._enter_text(p)
             )
-            b.grid(row=row, column=col, sticky="ew", padx=3, pady=3)
-        quick_grid.columnconfigure(0, weight=1)
-        quick_grid.columnconfigure(1, weight=1)
+            b.grid(row=i // 4, column=i % 4, sticky="ew", padx=2, pady=2)
+        for c in range(4):
+            grid_w.columnconfigure(c, weight=1)
+        self.f_quick_words.pack(fill="x")
 
-        # Column 3: Clinical Dialogue Ledger & Doctor Presets (Right, 380px)
-        col_ledger = Frame(main_container, bg="#141416", highlightbackground="#27272a", highlightthickness=1)
-        col_ledger.pack(side="right", fill="both", expand=True, padx=(6, 0), pady=4)
+        # Alphabet letters frame (initially hidden, shows in LETTERS mode)
+        self.f_quick_alpha = Frame(self.f_quick_container, bg="#141416")
+        lbl_quick_a = Label(self.f_quick_alpha, text="حروف أبجدية شائعة:", font=("Segoe UI", 9, "bold"), fg="#0284C7", bg="#141416")
+        lbl_quick_a.pack(anchor="ne", pady=(0, 2))
+        grid_a = Frame(self.f_quick_alpha, bg="#141416")
+        grid_a.pack(fill="x")
+        alpha_presets = ["ا", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ر", "س", "ش", "ص", "ع", "ف", "ق", "ك", "ل", "م", "ن", "هـ", "و", "ي"]
+        for i, letter in enumerate(alpha_presets):
+            b = Button(
+                grid_a, text=letter, font=("Segoe UI", 8, "bold"), bg="#1E1E22", fg="#38BDF8",
+                activebackground="#27272A", relief="flat", highlightbackground="#27272A",
+                highlightthickness=1, padx=2, pady=2, command=lambda l=letter: self._enter_text(l)
+            )
+            b.grid(row=i // 11, column=i % 11, sticky="ew", padx=1, pady=1)
+        for c in range(11):
+            grid_a.columnconfigure(c, weight=1)
 
-        lbl_led_title = Label(col_ledger, text="سجل المحادثة السريرية (Transcript)", font=("Segoe UI", 11, "bold"), fg="#F4F4F5", bg="#141416")
-        lbl_led_title.pack(anchor="ne", padx=14, pady=(10, 4))
+        # Dialogue Transcript
+        lbl_trans = Label(col_center, text="سجل المحادثة السريرية:", font=("Segoe UI", 10, "bold"), fg="#A1A1AA", bg="#141416")
+        lbl_trans.pack(anchor="ne", padx=14, pady=(6, 2))
 
-        # Transcript text area
         self.txt_transcript = Text(
-            col_ledger,
-            wrap="word",
-            bg="#18181B",
-            fg="#F4F4F5",
-            font=("Segoe UI", 11),
-            relief="flat",
-            padx=10,
-            pady=10,
-            highlightbackground="#27272A",
-            highlightthickness=1
+            col_center, wrap="word", bg="#18181B", fg="#F4F4F5", font=("Segoe UI", 10),
+            relief="flat", padx=8, pady=6, height=7, highlightbackground="#27272A", highlightthickness=1
         )
         self.txt_transcript.tag_configure("rtl", justify="right")
-        self.txt_transcript.tag_configure("patient_tag", foreground="#10B981", font=("Segoe UI", 11, "bold"))
-        self.txt_transcript.tag_configure("doctor_tag", foreground="#38BDF8", font=("Segoe UI", 11, "bold"))
-        self.txt_transcript.tag_configure("time_tag", foreground="#71717A", font=("Segoe UI", 9))
-        self.txt_transcript.pack(fill="both", expand=True, padx=14, pady=4)
+        self.txt_transcript.tag_configure("patient_tag", foreground="#10B981", font=("Segoe UI", 10, "bold"))
+        self.txt_transcript.tag_configure("doctor_tag", foreground="#38BDF8", font=("Segoe UI", 10, "bold"))
+        self.txt_transcript.tag_configure("time_tag", foreground="#71717A", font=("Segoe UI", 8))
+        self.txt_transcript.pack(fill="both", expand=True, padx=14, pady=2)
 
-        # Doctor Quick Clinical Responses
-        lbl_doc_responses = Label(col_ledger, text="ردود الطبيب الجاهزة:", font=("Segoe UI", 9, "bold"), fg="#38BDF8", bg="#141416")
-        lbl_doc_responses.pack(anchor="ne", padx=14, pady=(6, 2))
+        # Doctor quick replies & export row
+        doc_row = Frame(col_center, bg="#141416")
+        doc_row.pack(fill="x", padx=14, pady=(2, 6))
+        for preset in DialogueManager.CLINICAL_DOCTOR_PRESETS[:2]:
+            Button(
+                doc_row, text=preset, font=("Segoe UI", 8), bg="#18181B", fg="#E4E4E7",
+                relief="flat", highlightbackground="#27272A", highlightthickness=1,
+                padx=4, pady=2, command=lambda p=preset: self._add_doctor_message(p)
+            ).pack(side="right", padx=2)
 
-        doc_grid = Frame(col_ledger, bg="#141416")
-        doc_grid.pack(fill="x", padx=14, pady=2)
+        Button(
+            doc_row, text="تصدير السجل", font=("Segoe UI", 8, "bold"), bg="#27272A", fg="#F4F4F5",
+            relief="flat", padx=6, pady=2, command=self._export_transcript
+        ).pack(side="left", padx=2)
 
-        for i, preset in enumerate(DialogueManager.CLINICAL_DOCTOR_PRESETS[:4]):
-            row = i // 2
-            col = i % 2
-            btn_doc = Button(
-                doc_grid,
-                text=preset,
-                font=("Segoe UI", 8),
-                bg="#18181B",
-                fg="#E4E4E7",
-                activebackground="#27272A",
-                relief="flat",
-                highlightbackground="#27272A",
-                highlightthickness=1,
-                padx=4,
-                pady=4,
-                command=lambda p=preset: self._add_doctor_message(p)
-            )
-            btn_doc.grid(row=row, column=col, sticky="ew", padx=2, pady=2)
-        doc_grid.columnconfigure(0, weight=1)
-        doc_grid.columnconfigure(1, weight=1)
+        Button(
+            doc_row, text="مسح السجل", font=("Segoe UI", 8), bg="#27272A", fg="#A1A1AA",
+            relief="flat", padx=6, pady=2, command=self._clear_transcript
+        ).pack(side="left", padx=2)
 
-        # Transcript Export & Clear Row
-        row_exp = Frame(col_ledger, bg="#141416")
-        row_exp.pack(fill="x", padx=14, pady=(6, 10))
+        # Column 3: Live Sign Reference Poster (Right, ~350px)
+        col_poster = Frame(main_container, bg="#141416", highlightbackground="#27272a", highlightthickness=1)
+        col_poster.pack(side="right", fill="both", expand=False, padx=(6, 0), pady=4)
 
-        btn_export = Button(
-            row_exp,
-            text="تصدير التقرير الطبي",
-            font=("Segoe UI", 9, "bold"),
-            bg="#27272A",
-            fg="#F4F4F5",
-            activebackground="#3F3F46",
-            relief="flat",
-            padx=10,
-            pady=4,
-            command=self._export_transcript
+        self.lbl_chart_title = Label(
+            col_poster,
+            text="دليل إشارات عيادة الأسنان المعتمدة",
+            font=("Segoe UI", 10, "bold"),
+            fg="#10B981",
+            bg="#141416"
         )
-        btn_export.pack(side="right", padx=3)
+        self.lbl_chart_title.pack(anchor="center", padx=8, pady=(8, 4))
 
-        btn_clear_log = Button(
-            row_exp,
-            text="مسح السجل",
-            font=("Segoe UI", 9),
-            bg="#27272A",
-            fg="#A1A1AA",
-            activebackground="#3F3F46",
-            relief="flat",
-            padx=8,
-            pady=4,
-            command=self._clear_transcript
-        )
-        btn_clear_log.pack(side="left", padx=3)
+        self.lbl_reference_chart = Label(col_poster, bg="#141416")
+        if self.photo_dental is not None:
+            self.lbl_reference_chart.configure(image=self.photo_dental)
+            self.lbl_reference_chart.image = self.photo_dental
+        self.lbl_reference_chart.pack(padx=8, pady=4)
 
     def _build_bottom_statusbar(self):
         status_bar = Frame(self.root, bg="#141416", height=28, highlightbackground="#27272a", highlightthickness=1)
@@ -714,6 +711,15 @@ class SignAIModernApp:
                 bg="#0284C7",
                 fg="#FFFFFF"
             )
+            if hasattr(self, 'lbl_reference_chart') and self.photo_alphabet is not None:
+                self.lbl_reference_chart.configure(image=self.photo_alphabet)
+                self.lbl_reference_chart.image = self.photo_alphabet
+            if hasattr(self, 'lbl_chart_title'):
+                self.lbl_chart_title.config(text="لوحة الحروف الأبجدية (31 إشارة)", fg="#0284C7")
+            if hasattr(self, 'f_quick_words'):
+                self.f_quick_words.pack_forget()
+            if hasattr(self, 'f_quick_alpha'):
+                self.f_quick_alpha.pack(fill="x")
         else:
             self.current_mode = "WORDS"
             self.btn_mode_toggle.config(
@@ -721,9 +727,20 @@ class SignAIModernApp:
                 bg="#10B981",
                 fg="#09090B"
             )
+            if hasattr(self, 'lbl_reference_chart') and self.photo_dental is not None:
+                self.lbl_reference_chart.configure(image=self.photo_dental)
+                self.lbl_reference_chart.image = self.photo_dental
+            if hasattr(self, 'lbl_chart_title'):
+                self.lbl_chart_title.config(text="لوحة إشارات عيادة الأسنان (8 إشارات)", fg="#10B981")
+            if hasattr(self, 'f_quick_alpha'):
+                self.f_quick_alpha.pack_forget()
+            if hasattr(self, 'f_quick_words'):
+                self.f_quick_words.pack(fill="x")
+
         self.pred_history.clear()
         self.candidate_sign = None
         self.candidate_start_time = None
+        self.sign_already_committed = False
         if event is not None:
             return "break"
 
@@ -816,19 +833,24 @@ class SignAIModernApp:
             hold_threshold = self.hold_threshold_var.get()
             min_confidence = self.confidence_threshold_var.get()
 
+            # Persistent Mode Badge on Camera Feed
+            mode_badge_text = "إشارات عيادة الأسنان" if self.current_mode == "WORDS" else "الحروف الأبجدية"
+            mode_badge_col = (16, 185, 129) if self.current_mode == "WORDS" else (2, 132, 199)
+            frame = draw_hud_badge(frame, mode_badge_text, "[Tab/M]", pos=(20, 32), font_size=15, border_color=mode_badge_col)
+
             if results and results.multi_hand_landmarks:
                 no_of_hands = len(results.multi_hand_landmarks)
                 hand_features_list = []
 
-                # Draw landmark connections
+                # Draw landmark connections with crisp high-visibility styling
                 for hand_lms in results.multi_hand_landmarks:
                     if mp_drawing and hasattr(mp_hands, 'HAND_CONNECTIONS'):
                         mp_drawing.draw_landmarks(
                             frame,
                             hand_lms,
                             mp_hands.HAND_CONNECTIONS,
-                            mp_drawing.DrawingSpec(color=(39, 39, 42), thickness=1, circle_radius=1),
-                            mp_drawing.DrawingSpec(color=(16, 185, 129), thickness=1)
+                            mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=2, circle_radius=4),
+                            mp_drawing.DrawingSpec(color=(129, 185, 16), thickness=2)
                         )
                     # Extract 74 kinematic features
                     coords = [[lm.x, lm.y] for lm in hand_lms.landmark]
@@ -942,17 +964,18 @@ class SignAIModernApp:
                 if display_text and (confidence >= 0.70 or self.sign_already_committed):
                     status_text = "[تم]" if self.sign_already_committed else f"{int(confidence*100)}%"
                     border_color = (16, 185, 129) if (self.sign_already_committed or hold_progress >= 1.0) else (38, 38, 42)
-                    frame = draw_hud_badge(frame, display_text, status_text, pos=(24, 46), font_size=20, border_color=border_color)
+                    frame = draw_hud_badge(frame, display_text, status_text, pos=(20, 72), font_size=20, border_color=border_color)
 
                     # Dynamic Progress Bar underneath badge
                     if hold_progress > 0:
-                        bx, by, bw, bh = 24, 62, 180, 6
+                        bx, by, bw, bh = 20, 88, 180, 6
                         cv.rectangle(frame, (bx, by), (bx + bw, by + bh), (24, 24, 27), -1)
                         fill_w = int(bw * hold_progress)
                         bar_col = (16, 185, 129) if self.sign_already_committed else (245, 158, 11)
                         if fill_w > 0:
                             cv.rectangle(frame, (bx, by), (bx + fill_w, by + bh), bar_col, -1)
             else:
+                frame = draw_hud_badge(frame, "في انتظار اليدين", "ضع يدك أمام الكاميرا", pos=(20, 72), font_size=13, border_color=(75, 85, 99))
                 if self.candidate_start_time and (current_time - self.last_valid_time > self.grace_period):
                     self.candidate_sign = None
                     self.candidate_start_time = None

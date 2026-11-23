@@ -7,38 +7,33 @@ import math
 import cv2 as cv
 import numpy as np
 import mediapipe as mp
-import argostranslate.package
-import argostranslate.translate
+try:
+    import argostranslate.package
+    import argostranslate.translate
+    installed_packages = argostranslate.package.get_installed_packages()
+    is_installed = any(
+        x.from_code == from_code and x.to_code == to_code for x in installed_packages
+    )
+    if not is_installed:
+        argostranslate.package.update_package_index()
+        available_packages = argostranslate.package.get_available_packages()
+        package_to_install = next(
+            filter(
+                lambda x: x.from_code == from_code and x.to_code == to_code, available_packages
+            )
+        )
+        argostranslate.package.install_from_path(package_to_install.download())
+except Exception:
+    pass
 from collections import deque, Counter
 from model.keypoint_classifier.keypoint_classifier import KeyPointClassifier
 mp_drawing = mp.solutions.drawing_utils
 from tkinter import *
 from PIL import Image, ImageTk
-from gingerit.gingerit import GingerIt
-
-
-
-expression = ' '
-stored_inputs = []
-
-from_code = "en"
-to_code = "ar"
-# Download and install Argos Translate package
-
-installed_packages = argostranslate.package.get_installed_packages()
-is_installed = any(
-    x.from_code == from_code and x.to_code == to_code for x in installed_packages
-)
-if not is_installed:
-    print('checking network ...')
-    argostranslate.package.update_package_index()
-    available_packages = argostranslate.package.get_available_packages()
-    package_to_install = next(
-        filter(
-            lambda x: x.from_code == from_code and x.to_code == to_code, available_packages
-        )
-    )
-    argostranslate.package.install_from_path(package_to_install.download())
+try:
+    from gingerit.gingerit import GingerIt
+except Exception:
+    GingerIt = None
 
 
 def get_args():
