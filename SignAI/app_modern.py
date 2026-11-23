@@ -344,6 +344,11 @@ class SignAIModernApp:
 
     def _load_csv_labels(self, path):
         labels = []
+        if not os.path.isabs(path):
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            alt = os.path.join(base_dir, path)
+            if os.path.exists(alt):
+                path = alt
         if os.path.exists(path):
             with open(path, encoding='utf-8-sig') as f:
                 labels = [row[0].strip() for row in csv.reader(f) if row and row[0].strip()]
