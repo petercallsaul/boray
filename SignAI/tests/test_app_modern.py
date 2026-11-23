@@ -29,6 +29,12 @@ class TestAppModern(unittest.TestCase):
         self.assertIn("(95%)", formatted)
         self.assertTrue(len(formatted) > 5)
 
+        # Verify Arabic status string reshaping (e.g. [في الانتظار] / [تم])
+        waiting_hud = format_arabic_hud_text("ضع يدك أمام الكاميرا", "[في الانتظار]")
+        self.assertIn("[", waiting_hud)
+        self.assertIn("]", waiting_hud)
+        self.assertNotIn("ضع", waiting_hud, "Raw unshaped Arabic should not appear in HUD string")
+
     def test_c_pain_aperture_detection(self):
         # Class 3: mild pain (small pinch)
         pts_mild = generate_hand_landmarks(3)

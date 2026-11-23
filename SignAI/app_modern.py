@@ -126,32 +126,44 @@ def reshape_word(word):
     return ''.join(reshaped)
 
 
-def format_arabic_hud_text(arabic_label, percent_str=""):
-    words = arabic_label.strip().split()
+def _shape_arabic_text(text):
+    if not text:
+        return ""
+    words = text.strip().split()
     shaped_words = []
     for w in words:
-        has_open_paren = w.startswith('(') or w.startswith('[')
-        has_close_paren = w.endswith(')') or w.endswith(']')
+        has_bracket = w.startswith('[') and w.endswith(']')
+        has_paren = w.startswith('(') and w.endswith(')')
         core = w.strip('()[]')
         if any('\u0600' <= ch <= '\u06FF' for ch in core):
             shaped_core = reshape_word(core)[::-1]
         else:
             shaped_core = core
 
-        if has_open_paren and has_close_paren:
+        if has_bracket:
+            shaped_w = '[' + shaped_core + ']'
+        elif has_paren:
             shaped_w = '(' + shaped_core + ')'
-        elif has_open_paren:
-            shaped_w = shaped_core + '('
-        elif has_close_paren:
-            shaped_w = ')' + shaped_core
+        elif w.startswith('[') or w.startswith('('):
+            shaped_w = shaped_core + ('[' if w.startswith('[') else '(')
+        elif w.endswith(']') or w.endswith(')'):
+            shaped_w = (']' if w.endswith(']') else ')') + shaped_core
         else:
             shaped_w = shaped_core
         shaped_words.append(shaped_w)
+    return ' '.join(reversed(shaped_words))
 
-    shaped_label = ' '.join(reversed(shaped_words))
-    if percent_str:
-        return f"{percent_str}  {shaped_label}"
-    return shaped_label
+
+def format_arabic_hud_text(arabic_label, percent_str=""):
+    shaped_main = _shape_arabic_text(arabic_label)
+    if not percent_str:
+        return shaped_main
+
+    if any('\u0600' <= ch <= '\u06FF' for ch in percent_str):
+        shaped_status = _shape_arabic_text(percent_str)
+        return f"{shaped_status}  {shaped_main}"
+    else:
+        return f"{percent_str}  {shaped_main}"
 
 
 def draw_hud_badge(image, arabic_text, status_str, pos=(20, 40), font_size=22, border_color=(16, 185, 129)):
@@ -975,7 +987,7 @@ class SignAIModernApp:
                         if fill_w > 0:
                             cv.rectangle(frame, (bx, by), (bx + fill_w, by + bh), bar_col, -1)
             else:
-                frame = draw_hud_badge(frame, "في انتظار اليدين", "ضع يدك أمام الكاميرا", pos=(20, 72), font_size=13, border_color=(75, 85, 99))
+                frame = draw_hud_badge(frame, "ضع يدك أمام الكاميرا", "[في الانتظار]", pos=(20, 72), font_size=14, border_color=(75, 85, 99))
                 if self.candidate_start_time and (current_time - self.last_valid_time > self.grace_period):
                     self.candidate_sign = None
                     self.candidate_start_time = None
