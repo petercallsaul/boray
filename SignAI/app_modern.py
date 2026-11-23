@@ -1003,7 +1003,7 @@ class SignAIModernApp:
 
     def close(self):
         self.is_running = False
-        if self.cap.isOpened():
+        if self.cap is not None and self.cap.isOpened():
             self.cap.release()
         self.tts_engine.stop()
         self.root.destroy()
