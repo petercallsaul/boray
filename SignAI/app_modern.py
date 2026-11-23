@@ -17,11 +17,16 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
 import cv2 as cv
 import numpy as np
 import mediapipe as mp
+import customtkinter as ctk
 from tkinter import (
     Tk, Frame, Label, Entry, Button, Text, Canvas, Scrollbar,
     Scale, HORIZONTAL, END, StringVar, BooleanVar, DoubleVar, Toplevel
 )
 from PIL import Image, ImageTk, ImageDraw, ImageFont
+
+# Initialize CustomTkinter Dark Theme
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("blue")
 
 # Local system imports
 from model.keypoint_classifier.keypoint_classifier import KeyPointClassifier
@@ -292,7 +297,11 @@ class SignAIModernApp:
         pos_y = max(0, (screen_h - win_h) // 2)
         self.root.geometry(f"{win_w}x{win_h}+{pos_x}+{pos_y}")
         self.root.minsize(1080, 600)
-        self.root.configure(bg="#09090b")
+        if hasattr(self.root, 'configure'):
+            try:
+                self.root.configure(fg_color="#0B0F19")
+            except Exception:
+                self.root.configure(bg="#0B0F19")
 
         # Core State
         self.current_mode = "WORDS"  # "WORDS" (Dental Clinic) or "LETTERS" (Fingerspelling)
@@ -401,277 +410,340 @@ class SignAIModernApp:
     # --------------------------------------------------------------------------
 
     def _build_top_navbar(self):
-        nav_frame = Frame(self.root, bg="#141416", height=54, highlightbackground="#27272a", highlightthickness=1)
+        nav_frame = ctk.CTkFrame(
+            self.root,
+            corner_radius=10,
+            fg_color="#121826",
+            border_width=1,
+            border_color="#1F2937",
+            height=54
+        )
         nav_frame.pack(side="top", fill="x", padx=12, pady=(10, 6))
 
-        # Brand Title (Crisp Anti-AI Minimalist Typography)
-        title_label = Label(
+        # Brand Title (Crisp Minimalist Typography)
+        title_label = ctk.CTkLabel(
             nav_frame,
             text="SIGNAI | CLINICAL TRANSLATION WORKSTATION",
-            font=("Segoe UI", 12, "bold"),
-            fg="#F4F4F5",
-            bg="#141416",
-            padx=16
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            text_color="#F9FAFB"
         )
-        title_label.pack(side="left", pady=10)
+        title_label.pack(side="left", padx=(16, 8), pady=10)
 
         # Subtitle badge
-        sub_label = Label(
-            nav_frame,
+        sub_badge = ctk.CTkFrame(nav_frame, corner_radius=6, fg_color="#064E3B", border_width=1, border_color="#059669")
+        sub_badge.pack(side="left", padx=4, pady=10)
+        sub_label = ctk.CTkLabel(
+            sub_badge,
             text="EGYPTIAN ARABIC ARSL",
-            font=("Segoe UI", 9, "bold"),
-            fg="#10B981",
-            bg="#18231E",
-            padx=8,
-            pady=3
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            text_color="#34D399"
         )
-        sub_label.pack(side="left", padx=4)
+        sub_label.pack(padx=8, pady=2)
 
         # Right-side CTA controls
-        self.btn_mode_toggle = Button(
+        self.btn_mode_toggle = ctk.CTkButton(
             nav_frame,
             text="الوضع: إشارات طبيب الأسنان [Tab / M]",
-            font=("Segoe UI", 10, "bold"),
-            bg="#10B981",
-            fg="#09090B",
-            activebackground="#059669",
-            activeforeground="#FFFFFF",
-            relief="flat",
-            padx=14,
-            pady=4,
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            corner_radius=8,
+            fg_color="#10B981",
+            hover_color="#059669",
+            text_color="#09090B",
+            height=32,
             command=self._toggle_mode
         )
-        self.btn_mode_toggle.pack(side="right", padx=10)
+        self.btn_mode_toggle.config = self.btn_mode_toggle.configure
+        self.btn_mode_toggle.pack(side="right", padx=10, pady=10)
 
-        self.btn_guide = Button(
+        self.btn_guide = ctk.CTkButton(
             nav_frame,
             text="دليل الإشارات [F2]",
-            font=("Segoe UI", 9, "bold"),
-            bg="#27272A",
-            fg="#E4E4E7",
-            activebackground="#3F3F46",
-            relief="flat",
-            padx=10,
-            pady=4,
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            corner_radius=8,
+            fg_color="#1F2937",
+            hover_color="#374151",
+            text_color="#F9FAFB",
+            height=32,
             command=self._open_guide_modal
         )
-        self.btn_guide.pack(side="right", padx=6)
+        self.btn_guide.config = self.btn_guide.configure
+        self.btn_guide.pack(side="right", padx=6, pady=10)
 
-        self.btn_tts_toggle = Button(
+        self.btn_tts_toggle = ctk.CTkButton(
             nav_frame,
             text="الصوت: مفعل",
-            font=("Segoe UI", 9, "bold"),
-            bg="#27272A",
-            fg="#E4E4E7",
-            activebackground="#3F3F46",
-            relief="flat",
-            padx=10,
-            pady=4,
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            corner_radius=8,
+            fg_color="#1F2937",
+            hover_color="#374151",
+            text_color="#10B981",
+            height=32,
             command=self._toggle_tts
         )
-        self.btn_tts_toggle.pack(side="right", padx=6)
+        self.btn_tts_toggle.config = self.btn_tts_toggle.configure
+        self.btn_tts_toggle.pack(side="right", padx=6, pady=10)
 
     def _build_main_workspace(self):
-        main_container = Frame(self.root, bg="#09090b")
+        main_container = ctk.CTkFrame(self.root, fg_color="transparent")
         main_container.pack(fill="both", expand=True, padx=12, pady=4)
 
-        # Column 1: Video HUD & Parameter Sliders (Left, 540px)
-        col_video = Frame(main_container, bg="#141416", highlightbackground="#27272a", highlightthickness=1)
+        # Column 1: Video HUD & Parameter Sliders (Left, ~540px)
+        col_video = ctk.CTkFrame(
+            main_container,
+            corner_radius=12,
+            fg_color="#121826",
+            border_width=1,
+            border_color="#1F2937"
+        )
         col_video.pack(side="left", fill="both", expand=False, padx=(0, 6), pady=4)
 
-        self.lbl_camera = Label(col_video, bg="#09090b")
-        self.lbl_camera.pack(padx=8, pady=8)
+        v_header = ctk.CTkFrame(col_video, fg_color="transparent")
+        v_header.pack(fill="x", padx=12, pady=(10, 4))
+        ctk.CTkLabel(
+            v_header,
+            text="بث الكاميرا والتعرف الحركي (LIVE HUD)",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color="#9CA3AF"
+        ).pack(side="right")
+        cam_dot = ctk.CTkLabel(
+            v_header,
+            text="● ON-AIR",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            text_color="#10B981"
+        )
+        cam_dot.pack(side="left")
+
+        self.lbl_camera = Label(col_video, bg="#0B0F19")
+        self.lbl_camera.pack(padx=10, pady=4)
 
         # Sliders Container
-        ctrl_frame = Frame(col_video, bg="#141416")
-        ctrl_frame.pack(fill="x", padx=12, pady=4)
+        ctrl_frame = ctk.CTkFrame(col_video, corner_radius=8, fg_color="#0F172A", border_width=1, border_color="#1E293B")
+        ctrl_frame.pack(fill="x", padx=10, pady=(6, 10))
 
-        Label(ctrl_frame, text="مدة تثبيت الإشارة (ثواني):", font=("Segoe UI", 9), fg="#A1A1AA", bg="#141416").grid(row=0, column=0, sticky="w")
-        self.lbl_hold_val = Label(ctrl_frame, text="1.5s", font=("Segoe UI", 9, "bold"), fg="#10B981", bg="#141416")
-        self.lbl_hold_val.grid(row=0, column=1, sticky="e")
+        # Hold Slider
+        s1_row = ctk.CTkFrame(ctrl_frame, fg_color="transparent")
+        s1_row.pack(fill="x", padx=10, pady=(8, 2))
+        ctk.CTkLabel(
+            s1_row,
+            text="مدة تثبيت الإشارة (ثواني):",
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            text_color="#9CA3AF"
+        ).pack(side="right")
+        self.lbl_hold_val = ctk.CTkLabel(
+            s1_row,
+            text="1.5s",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color="#10B981"
+        )
+        self.lbl_hold_val.config = self.lbl_hold_val.configure
+        self.lbl_hold_val.pack(side="left")
 
-        self.slider_hold = Scale(
+        self.slider_hold = ctk.CTkSlider(
             ctrl_frame,
-            from_=0.5, to=3.0,
-            resolution=0.1,
-            orient=HORIZONTAL,
-            showvalue=False,
+            from_=0.5,
+            to=3.0,
+            number_of_steps=25,
             variable=self.hold_threshold_var,
-            command=lambda v: self.lbl_hold_val.config(text=f"{float(v):.1f}s"),
-            bg="#141416",
-            troughcolor="#27272A",
-            activebackground="#10B981",
-            highlightthickness=0,
-            length=300
+            button_color="#10B981",
+            progress_color="#10B981",
+            button_hover_color="#059669",
+            fg_color="#1E293B",
+            command=lambda v: self.lbl_hold_val.configure(text=f"{float(v):.1f}s")
         )
-        self.slider_hold.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(2, 6))
+        self.slider_hold.pack(fill="x", padx=10, pady=(2, 6))
 
-        Label(ctrl_frame, text="حد دقة التعرف (Confidence):", font=("Segoe UI", 9), fg="#A1A1AA", bg="#141416").grid(row=2, column=0, sticky="w")
-        self.lbl_conf_val = Label(ctrl_frame, text="80%", font=("Segoe UI", 9, "bold"), fg="#10B981", bg="#141416")
-        self.lbl_conf_val.grid(row=2, column=1, sticky="e")
+        # Confidence Slider
+        s2_row = ctk.CTkFrame(ctrl_frame, fg_color="transparent")
+        s2_row.pack(fill="x", padx=10, pady=(4, 2))
+        ctk.CTkLabel(
+            s2_row,
+            text="حد دقة التعرف (Confidence):",
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            text_color="#9CA3AF"
+        ).pack(side="right")
+        self.lbl_conf_val = ctk.CTkLabel(
+            s2_row,
+            text="80%",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color="#10B981"
+        )
+        self.lbl_conf_val.config = self.lbl_conf_val.configure
+        self.lbl_conf_val.pack(side="left")
 
-        self.slider_conf = Scale(
+        self.slider_conf = ctk.CTkSlider(
             ctrl_frame,
-            from_=0.60, to=0.95,
-            resolution=0.05,
-            orient=HORIZONTAL,
-            showvalue=False,
+            from_=0.60,
+            to=0.95,
+            number_of_steps=35,
             variable=self.confidence_threshold_var,
-            command=lambda v: self.lbl_conf_val.config(text=f"{int(float(v)*100)}%"),
-            bg="#141416",
-            troughcolor="#27272A",
-            activebackground="#10B981",
-            highlightthickness=0,
-            length=300
+            button_color="#10B981",
+            progress_color="#10B981",
+            button_hover_color="#059669",
+            fg_color="#1E293B",
+            command=lambda v: self.lbl_conf_val.configure(text=f"{int(float(v)*100)}%")
         )
-        self.slider_conf.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(2, 6))
+        self.slider_conf.pack(fill="x", padx=10, pady=(2, 8))
 
         # Column 3: Live Sign Reference Poster (Right, ~340px - DOCKED FIRST so it is NEVER clipped)
-        col_poster = Frame(main_container, bg="#141416", highlightbackground="#27272a", highlightthickness=1)
+        col_poster = ctk.CTkFrame(
+            main_container,
+            corner_radius=12,
+            fg_color="#121826",
+            border_width=1,
+            border_color="#1F2937"
+        )
         col_poster.pack(side="right", fill="both", expand=False, padx=(6, 0), pady=4)
 
-        header_poster = Frame(col_poster, bg="#141416")
-        header_poster.pack(fill="x", padx=8, pady=(6, 2))
+        header_poster = ctk.CTkFrame(col_poster, fg_color="transparent")
+        header_poster.pack(fill="x", padx=8, pady=(8, 2))
 
-        lbl_guide_badge = Label(
+        lbl_guide_badge = ctk.CTkLabel(
             header_poster,
             text="دليل الإشارات التفاعلي (Gestures Guide)",
-            font=("Segoe UI", 9, "bold"),
-            fg="#A1A1AA",
-            bg="#141416"
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            text_color="#9CA3AF"
         )
         lbl_guide_badge.pack(anchor="center")
 
-        self.lbl_chart_title = Label(
+        self.lbl_chart_title = ctk.CTkLabel(
             header_poster,
             text="دليل إشارات عيادة الأسنان المعتمدة",
-            font=("Segoe UI", 10, "bold"),
-            fg="#10B981",
-            bg="#141416"
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            text_color="#10B981"
         )
-        self.lbl_chart_title.pack(anchor="center", pady=(2, 2))
+        self.lbl_chart_title.config = self.lbl_chart_title.configure
+        self.lbl_chart_title.pack(anchor="center", pady=(2, 1))
 
-        self.lbl_chart_sub = Label(
+        self.lbl_chart_sub = ctk.CTkLabel(
             header_poster,
             text="تحديث تلقائي مع الوضع [Tab / M]",
-            font=("Segoe UI", 8),
-            fg="#71717A",
-            bg="#141416"
+            font=ctk.CTkFont(family="Segoe UI", size=8),
+            text_color="#6B7280"
         )
+        self.lbl_chart_sub.config = self.lbl_chart_sub.configure
         self.lbl_chart_sub.pack(anchor="center")
 
-        self.lbl_reference_chart = Label(col_poster, bg="#141416")
+        self.lbl_reference_chart = Label(col_poster, bg="#121826")
         if self.photo_dental is not None:
             self.lbl_reference_chart.configure(image=self.photo_dental)
             self.lbl_reference_chart.image = self.photo_dental
         self.lbl_reference_chart.pack(padx=8, pady=4)
 
-        btn_modal_guide = Button(
+        btn_modal_guide = ctk.CTkButton(
             col_poster,
             text="عرض الدليل بالحجم الكامل [F2]",
-            font=("Segoe UI", 8, "bold"),
-            bg="#27272A",
-            fg="#F4F4F5",
-            activebackground="#3F3F46",
-            relief="flat",
-            padx=8,
-            pady=3,
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=8,
+            fg_color="#1F2937",
+            hover_color="#374151",
+            text_color="#F9FAFB",
+            height=30,
             command=self._open_guide_modal
         )
-        btn_modal_guide.pack(fill="x", padx=12, pady=(2, 6))
+        btn_modal_guide.pack(fill="x", padx=12, pady=(2, 8))
 
         # Column 2: Composer & Clinical Dialogue (Center, flexes to fill available space)
-        col_center = Frame(main_container, bg="#141416", highlightbackground="#27272a", highlightthickness=1)
+        col_center = ctk.CTkFrame(
+            main_container,
+            corner_radius=12,
+            fg_color="#121826",
+            border_width=1,
+            border_color="#1F2937"
+        )
         col_center.pack(side="left", fill="both", expand=True, padx=6, pady=4)
 
-        lbl_comp_title = Label(col_center, text="صياغة رسالة المريض (Composer)", font=("Segoe UI", 11, "bold"), fg="#F4F4F5", bg="#141416")
+        lbl_comp_title = ctk.CTkLabel(
+            col_center,
+            text="صياغة رسالة المريض (Composer)",
+            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
+            text_color="#F9FAFB"
+        )
         lbl_comp_title.pack(anchor="ne", padx=14, pady=(8, 2))
 
         # Large RTL Arabic entry
-        self.entry_composer = Entry(
+        self.entry_composer = ctk.CTkEntry(
             col_center,
-            font=("Segoe UI", 18, "bold"),
-            fg="#FFFFFF",
-            bg="#1E1E22",
-            insertbackground="#10B981",
+            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
+            fg_color="#1E293B",
+            border_color="#334155",
+            border_width=1,
+            corner_radius=8,
             justify="right",
-            relief="flat",
-            highlightbackground="#27272A",
-            highlightcolor="#10B981",
-            highlightthickness=1
+            height=40
         )
-        self.entry_composer.pack(fill="x", padx=14, pady=4, ipady=4)
+        self.entry_composer.pack(fill="x", padx=14, pady=4)
         self.entry_composer.bind("<Return>", lambda e: self._submit_sentence())
 
         # Action Buttons
-        btn_action_frame = Frame(col_center, bg="#141416")
+        btn_action_frame = ctk.CTkFrame(col_center, fg_color="transparent")
         btn_action_frame.pack(fill="x", padx=14, pady=4)
 
-        btn_submit = Button(
+        btn_submit = ctk.CTkButton(
             btn_action_frame,
             text="إرسال للجلسة [Enter]",
-            font=("Segoe UI", 9, "bold"),
-            bg="#10B981",
-            fg="#09090B",
-            activebackground="#059669",
-            relief="flat",
-            padx=8,
-            pady=3,
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=6,
+            fg_color="#10B981",
+            hover_color="#059669",
+            text_color="#09090B",
+            height=28,
             command=self._submit_sentence
         )
         btn_submit.pack(side="right", padx=2)
 
-        btn_space = Button(
+        btn_space = ctk.CTkButton(
             btn_action_frame,
             text="مسافة",
-            font=("Segoe UI", 9),
-            bg="#27272A",
-            fg="#E4E4E7",
-            activebackground="#3F3F46",
-            relief="flat",
-            padx=8,
-            pady=3,
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            corner_radius=6,
+            fg_color="#1E293B",
+            hover_color="#334155",
+            text_color="#E2E8F0",
+            height=28,
             command=lambda: self._enter_text(" ")
         )
         btn_space.pack(side="right", padx=2)
 
-        btn_backspace = Button(
+        btn_backspace = ctk.CTkButton(
             btn_action_frame,
             text="مسح حرف",
-            font=("Segoe UI", 9),
-            bg="#27272A",
-            fg="#E4E4E7",
-            activebackground="#3F3F46",
-            relief="flat",
-            padx=6,
-            pady=3,
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            corner_radius=6,
+            fg_color="#1E293B",
+            hover_color="#334155",
+            text_color="#E2E8F0",
+            height=28,
             command=self._delete_char
         )
         btn_backspace.pack(side="right", padx=2)
 
-        btn_clear = Button(
+        btn_clear = ctk.CTkButton(
             btn_action_frame,
             text="مسح الكل",
-            font=("Segoe UI", 9),
-            bg="#27272A",
-            fg="#E4E4E7",
-            activebackground="#3F3F46",
-            relief="flat",
-            padx=6,
-            pady=3,
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            corner_radius=6,
+            fg_color="#1E293B",
+            hover_color="#334155",
+            text_color="#E2E8F0",
+            height=28,
             command=self._clear_composer
         )
         btn_clear.pack(side="right", padx=2)
 
         # Quick Palette Section (Dynamically toggles between Words and Letters!)
-        self.f_quick_container = Frame(col_center, bg="#141416")
+        self.f_quick_container = ctk.CTkFrame(col_center, fg_color="transparent")
         self.f_quick_container.pack(fill="x", padx=14, pady=4)
 
         # Dental phrases frame
-        self.f_quick_words = Frame(self.f_quick_container, bg="#141416")
-        lbl_quick_w = Label(self.f_quick_words, text="إشارات عيادة الأسنان السريعة:", font=("Segoe UI", 9, "bold"), fg="#10B981", bg="#141416")
+        self.f_quick_words = ctk.CTkFrame(self.f_quick_container, fg_color="transparent")
+        lbl_quick_w = ctk.CTkLabel(
+            self.f_quick_words,
+            text="إشارات عيادة الأسنان السريعة:",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color="#10B981"
+        )
         lbl_quick_w.pack(anchor="ne", pady=(0, 2))
-        grid_w = Frame(self.f_quick_words, bg="#141416")
+        grid_w = ctk.CTkFrame(self.f_quick_words, fg_color="transparent")
         grid_w.pack(fill="x")
         dental_presets = [
             ("أشعر بألم", "أشعر بألم "),
@@ -684,10 +756,16 @@ class SignAIModernApp:
             ("أحك وجهي", "اريد أن أحك وجهي ")
         ]
         for i, (btn_text, phrase) in enumerate(dental_presets):
-            b = Button(
-                grid_w, text=btn_text, font=("Segoe UI", 8), bg="#1E1E22", fg="#F4F4F5",
-                activebackground="#27272A", relief="flat", highlightbackground="#27272A",
-                highlightthickness=1, padx=4, pady=4, command=lambda p=phrase: self._enter_text(p)
+            b = ctk.CTkButton(
+                grid_w,
+                text=btn_text,
+                font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+                corner_radius=6,
+                fg_color="#1E293B",
+                hover_color="#334155",
+                text_color="#F8FAFC",
+                height=26,
+                command=lambda p=phrase: self._enter_text(p)
             )
             b.grid(row=i // 4, column=i % 4, sticky="ew", padx=2, pady=2)
         for c in range(4):
@@ -695,79 +773,131 @@ class SignAIModernApp:
         self.f_quick_words.pack(fill="x")
 
         # Alphabet letters frame (initially hidden, shows in LETTERS mode)
-        self.f_quick_alpha = Frame(self.f_quick_container, bg="#141416")
-        lbl_quick_a = Label(self.f_quick_alpha, text="حروف أبجدية شائعة:", font=("Segoe UI", 9, "bold"), fg="#0284C7", bg="#141416")
+        self.f_quick_alpha = ctk.CTkFrame(self.f_quick_container, fg_color="transparent")
+        lbl_quick_a = ctk.CTkLabel(
+            self.f_quick_alpha,
+            text="حروف أبجدية شائعة:",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color="#0284C7"
+        )
         lbl_quick_a.pack(anchor="ne", pady=(0, 2))
-        grid_a = Frame(self.f_quick_alpha, bg="#141416")
+        grid_a = ctk.CTkFrame(self.f_quick_alpha, fg_color="transparent")
         grid_a.pack(fill="x")
         alpha_presets = ["ا", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ر", "س", "ش", "ص", "ع", "ف", "ق", "ك", "ل", "م", "ن", "هـ", "و", "ي"]
         for i, letter in enumerate(alpha_presets):
-            b = Button(
-                grid_a, text=letter, font=("Segoe UI", 8, "bold"), bg="#1E1E22", fg="#38BDF8",
-                activebackground="#27272A", relief="flat", highlightbackground="#27272A",
-                highlightthickness=1, padx=2, pady=2, command=lambda l=letter: self._enter_text(l)
+            b = ctk.CTkButton(
+                grid_a,
+                text=letter,
+                font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+                corner_radius=4,
+                fg_color="#1E293B",
+                hover_color="#0284C7",
+                text_color="#38BDF8",
+                height=24,
+                command=lambda l=letter: self._enter_text(l)
             )
             b.grid(row=i // 11, column=i % 11, sticky="ew", padx=1, pady=1)
         for c in range(11):
             grid_a.columnconfigure(c, weight=1)
 
         # Dialogue Transcript
-        lbl_trans = Label(col_center, text="سجل المحادثة السريرية:", font=("Segoe UI", 10, "bold"), fg="#A1A1AA", bg="#141416")
+        lbl_trans = ctk.CTkLabel(
+            col_center,
+            text="سجل المحادثة السريرية:",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color="#9CA3AF"
+        )
         lbl_trans.pack(anchor="ne", padx=14, pady=(6, 2))
 
+        txt_container = ctk.CTkFrame(col_center, corner_radius=8, fg_color="#0F172A", border_width=1, border_color="#1E293B")
+        txt_container.pack(fill="both", expand=True, padx=14, pady=2)
+
         self.txt_transcript = Text(
-            col_center, wrap="word", bg="#18181B", fg="#F4F4F5", font=("Segoe UI", 10),
-            relief="flat", padx=8, pady=6, height=7, highlightbackground="#27272A", highlightthickness=1
+            txt_container,
+            wrap="word",
+            bg="#0F172A",
+            fg="#F8FAFC",
+            font=("Segoe UI", 10),
+            relief="flat",
+            padx=8,
+            pady=6,
+            height=6,
+            highlightthickness=0
         )
         self.txt_transcript.tag_configure("rtl", justify="right")
         self.txt_transcript.tag_configure("patient_tag", foreground="#10B981", font=("Segoe UI", 10, "bold"))
         self.txt_transcript.tag_configure("doctor_tag", foreground="#38BDF8", font=("Segoe UI", 10, "bold"))
-        self.txt_transcript.tag_configure("time_tag", foreground="#71717A", font=("Segoe UI", 8))
-        self.txt_transcript.pack(fill="both", expand=True, padx=14, pady=2)
+        self.txt_transcript.tag_configure("time_tag", foreground="#64748B", font=("Segoe UI", 8))
+        self.txt_transcript.pack(fill="both", expand=True, padx=4, pady=4)
 
         # Doctor quick replies & export row
-        doc_row = Frame(col_center, bg="#141416")
-        doc_row.pack(fill="x", padx=14, pady=(2, 6))
+        doc_row = ctk.CTkFrame(col_center, fg_color="transparent")
+        doc_row.pack(fill="x", padx=14, pady=(2, 8))
         for preset in DialogueManager.CLINICAL_DOCTOR_PRESETS[:2]:
-            Button(
-                doc_row, text=preset, font=("Segoe UI", 8), bg="#18181B", fg="#E4E4E7",
-                relief="flat", highlightbackground="#27272A", highlightthickness=1,
-                padx=4, pady=2, command=lambda p=preset: self._add_doctor_message(p)
+            ctk.CTkButton(
+                doc_row,
+                text=preset,
+                font=ctk.CTkFont(family="Segoe UI", size=8),
+                corner_radius=6,
+                fg_color="#1E293B",
+                hover_color="#0284C7",
+                text_color="#E2E8F0",
+                height=26,
+                command=lambda p=preset: self._add_doctor_message(p)
             ).pack(side="right", padx=2)
 
-        Button(
-            doc_row, text="تصدير السجل", font=("Segoe UI", 8, "bold"), bg="#27272A", fg="#F4F4F5",
-            relief="flat", padx=6, pady=2, command=self._export_transcript
+        ctk.CTkButton(
+            doc_row,
+            text="تصدير السجل",
+            font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
+            corner_radius=6,
+            fg_color="#1E293B",
+            hover_color="#334155",
+            text_color="#F8FAFC",
+            height=26,
+            command=self._export_transcript
         ).pack(side="left", padx=2)
 
-        Button(
-            doc_row, text="مسح السجل", font=("Segoe UI", 8), bg="#27272A", fg="#A1A1AA",
-            relief="flat", padx=6, pady=2, command=self._clear_transcript
+        ctk.CTkButton(
+            doc_row,
+            text="مسح السجل",
+            font=ctk.CTkFont(family="Segoe UI", size=8),
+            corner_radius=6,
+            fg_color="#1E293B",
+            hover_color="#334155",
+            text_color="#94A3B8",
+            height=26,
+            command=self._clear_transcript
         ).pack(side="left", padx=2)
 
     def _build_bottom_statusbar(self):
-        status_bar = Frame(self.root, bg="#141416", height=28, highlightbackground="#27272a", highlightthickness=1)
+        status_bar = ctk.CTkFrame(
+            self.root,
+            corner_radius=8,
+            fg_color="#121826",
+            border_width=1,
+            border_color="#1F2937",
+            height=28
+        )
         status_bar.pack(side="bottom", fill="x", padx=12, pady=(0, 6))
 
-        self.lbl_status_left = Label(
+        self.lbl_status_left = ctk.CTkLabel(
             status_bar,
             text="SYSTEM READY | CAMERA CONNECTED",
-            font=("Segoe UI", 8, "bold"),
-            fg="#71717A",
-            bg="#141416",
-            padx=10
+            font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
+            text_color="#64748B"
         )
-        self.lbl_status_left.pack(side="left", pady=4)
+        self.lbl_status_left.config = self.lbl_status_left.configure
+        self.lbl_status_left.pack(side="left", padx=10, pady=2)
 
-        self.lbl_status_perf = Label(
+        self.lbl_status_perf = ctk.CTkLabel(
             status_bar,
             text="FPS: -- | INFERENCE: -- ms",
-            font=("Segoe UI", 8, "bold"),
-            fg="#10B981",
-            bg="#141416",
-            padx=10
+            font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
+            text_color="#10B981"
         )
-        self.lbl_status_perf.pack(side="right", pady=4)
+        self.lbl_status_perf.config = self.lbl_status_perf.configure
+        self.lbl_status_perf.pack(side="right", padx=10, pady=2)
 
     # --------------------------------------------------------------------------
     # Interaction Logic & Actions
@@ -776,36 +906,40 @@ class SignAIModernApp:
     def _toggle_mode(self, event=None):
         if self.current_mode == "WORDS":
             self.current_mode = "LETTERS"
-            self.btn_mode_toggle.config(
-                text="الوضع: الحروف الأبجدية [Tab / M]",
-                bg="#0284C7",
-                fg="#FFFFFF"
-            )
+            if hasattr(self, 'btn_mode_toggle'):
+                self.btn_mode_toggle.configure(
+                    text="الوضع: الحروف الأبجدية [Tab / M]",
+                    fg_color="#0284C7",
+                    hover_color="#0369A1",
+                    text_color="#FFFFFF"
+                )
             if hasattr(self, 'lbl_reference_chart') and self.photo_alphabet is not None:
                 self.lbl_reference_chart.configure(image=self.photo_alphabet)
                 self.lbl_reference_chart.image = self.photo_alphabet
             if hasattr(self, 'lbl_chart_title'):
-                self.lbl_chart_title.config(text="لوحة الحروف الأبجدية (31 إشارة)", fg="#0284C7")
+                self.lbl_chart_title.configure(text="لوحة الحروف الأبجدية (31 إشارة)", text_color="#0284C7")
             if hasattr(self, 'lbl_chart_sub'):
-                self.lbl_chart_sub.config(text="وضع التهجئة بالأبجدية | [Tab/M] للكلمات")
+                self.lbl_chart_sub.configure(text="وضع التهجئة بالأبجدية | [Tab/M] للكلمات")
             if hasattr(self, 'f_quick_words'):
                 self.f_quick_words.pack_forget()
             if hasattr(self, 'f_quick_alpha'):
                 self.f_quick_alpha.pack(fill="x")
         else:
             self.current_mode = "WORDS"
-            self.btn_mode_toggle.config(
-                text="الوضع: إشارات طبيب الأسنان [Tab / M]",
-                bg="#10B981",
-                fg="#09090B"
-            )
+            if hasattr(self, 'btn_mode_toggle'):
+                self.btn_mode_toggle.configure(
+                    text="الوضع: إشارات طبيب الأسنان [Tab / M]",
+                    fg_color="#10B981",
+                    hover_color="#059669",
+                    text_color="#09090B"
+                )
             if hasattr(self, 'lbl_reference_chart') and self.photo_dental is not None:
                 self.lbl_reference_chart.configure(image=self.photo_dental)
                 self.lbl_reference_chart.image = self.photo_dental
             if hasattr(self, 'lbl_chart_title'):
-                self.lbl_chart_title.config(text="لوحة إشارات عيادة الأسنان (8 إشارات)", fg="#10B981")
+                self.lbl_chart_title.configure(text="لوحة إشارات عيادة الأسنان (8 إشارات)", text_color="#10B981")
             if hasattr(self, 'lbl_chart_sub'):
-                self.lbl_chart_sub.config(text="إشارات سريرية مباشرة | [Tab/M] للحروف")
+                self.lbl_chart_sub.configure(text="إشارات سريرية مباشرة | [Tab/M] للحروف")
             if hasattr(self, 'f_quick_alpha'):
                 self.f_quick_alpha.pack_forget()
             if hasattr(self, 'f_quick_words'):
@@ -820,36 +954,33 @@ class SignAIModernApp:
 
     def _open_guide_modal(self, event=None):
         """Opens a dedicated high-resolution visual reference guide modal."""
-        modal = Toplevel(self.root)
+        modal = ctk.CTkToplevel(self.root)
         modal.title("SignAI - دليل إشارات لغة الإشارة المصرية الكامل")
         modal.geometry("900x780")
-        modal.configure(bg="#09090B")
+        modal.configure(fg_color="#0B0F19")
         modal.minsize(650, 600)
         modal.transient(self.root)
 
         # Header
-        top_bar = Frame(modal, bg="#141416", highlightbackground="#27272A", highlightthickness=1)
+        top_bar = ctk.CTkFrame(modal, corner_radius=10, fg_color="#121826", border_width=1, border_color="#1F2937")
         top_bar.pack(fill="x", padx=12, pady=10)
 
-        Label(
+        ctk.CTkLabel(
             top_bar,
             text="دليل الإشارات الاسترشادي الكامل (ArSL Visual Guide)",
-            font=("Segoe UI", 12, "bold"),
-            fg="#F4F4F5",
-            bg="#141416",
-            padx=12,
-            pady=8
-        ).pack(side="right")
+            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
+            text_color="#F8FAFC"
+        ).pack(side="right", padx=12, pady=8)
 
         # Tab switch buttons
-        btn_frame = Frame(top_bar, bg="#141416")
+        btn_frame = ctk.CTkFrame(top_bar, fg_color="transparent")
         btn_frame.pack(side="left", padx=10, pady=6)
 
-        content_frame = Frame(modal, bg="#09090B")
+        content_frame = ctk.CTkFrame(modal, corner_radius=10, fg_color="#121826")
         content_frame.pack(fill="both", expand=True, padx=12, pady=(0, 10))
 
-        img_label = Label(content_frame, bg="#09090B")
-        img_label.pack(fill="both", expand=True)
+        img_label = Label(content_frame, bg="#121826")
+        img_label.pack(fill="both", expand=True, padx=8, pady=8)
 
         modal_images = {}
         try:
@@ -869,43 +1000,39 @@ class SignAIModernApp:
             pass
 
         def show_dental():
-            btn_tab_d.config(bg="#10B981", fg="#09090B")
-            btn_tab_a.config(bg="#27272A", fg="#E4E4E7")
+            btn_tab_d.configure(fg_color="#10B981", text_color="#09090B")
+            btn_tab_a.configure(fg_color="#1E293B", text_color="#E2E8F0")
             if 'dental' in modal_images:
                 img_label.configure(image=modal_images['dental'])
                 img_label.image = modal_images['dental']
 
         def show_alpha():
-            btn_tab_a.config(bg="#0284C7", fg="#FFFFFF")
-            btn_tab_d.config(bg="#27272A", fg="#E4E4E7")
+            btn_tab_a.configure(fg_color="#0284C7", text_color="#FFFFFF")
+            btn_tab_d.configure(fg_color="#1E293B", text_color="#E2E8F0")
             if 'alpha' in modal_images:
                 img_label.configure(image=modal_images['alpha'])
                 img_label.image = modal_images['alpha']
 
-        btn_tab_d = Button(
+        btn_tab_d = ctk.CTkButton(
             btn_frame,
             text="إشارات عيادة الأسنان (8 إشارات)",
-            font=("Segoe UI", 9, "bold"),
-            bg="#10B981",
-            fg="#09090B",
-            activebackground="#059669",
-            relief="flat",
-            padx=10,
-            pady=4,
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=6,
+            fg_color="#10B981",
+            hover_color="#059669",
+            text_color="#09090B",
             command=show_dental
         )
         btn_tab_d.pack(side="left", padx=4)
 
-        btn_tab_a = Button(
+        btn_tab_a = ctk.CTkButton(
             btn_frame,
             text="الحروف الأبجدية (31 إشارة)",
-            font=("Segoe UI", 9, "bold"),
-            bg="#27272A",
-            fg="#E4E4E7",
-            activebackground="#0284C7",
-            relief="flat",
-            padx=10,
-            pady=4,
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=6,
+            fg_color="#1E293B",
+            hover_color="#0284C7",
+            text_color="#E2E8F0",
             command=show_alpha
         )
         btn_tab_a.pack(side="left", padx=4)
@@ -922,10 +1049,11 @@ class SignAIModernApp:
     def _toggle_tts(self):
         enabled = self.tts_engine.toggle()
         self.tts_enabled_var.set(enabled)
-        self.btn_tts_toggle.config(
-            text="الصوت: مفعل" if enabled else "الصوت: معطل",
-            fg="#10B981" if enabled else "#71717A"
-        )
+        if hasattr(self, 'btn_tts_toggle'):
+            self.btn_tts_toggle.configure(
+                text="الصوت: مفعل" if enabled else "الصوت: معطل",
+                text_color="#10B981" if enabled else "#64748B"
+            )
 
     def _enter_text(self, text):
         self.expression += text
@@ -975,7 +1103,7 @@ class SignAIModernApp:
 
     def _export_transcript(self):
         filepath = self.dialogue_mgr.export_transcript()
-        self.lbl_status_left.config(text=f"EXPORTED: {os.path.basename(filepath)}", fg="#10B981")
+        self.lbl_status_left.configure(text=f"EXPORTED: {os.path.basename(filepath)}", text_color="#10B981")
 
     def _clear_transcript(self):
         self.dialogue_mgr.clear()
@@ -1163,7 +1291,7 @@ class SignAIModernApp:
                 self.current_fps = self.fps_counter / (current_time - self.fps_start_time)
                 self.fps_counter = 0
                 self.fps_start_time = current_time
-                self.lbl_status_perf.config(
+                self.lbl_status_perf.configure(
                     text=f"FPS: {self.current_fps:.1f} | INFERENCE: {self.last_inference_ms:.1f} ms"
                 )
 
@@ -1185,7 +1313,9 @@ class SignAIModernApp:
 
 
 def main():
-    root = Tk()
+    ctk.set_appearance_mode("Dark")
+    ctk.set_default_color_theme("blue")
+    root = ctk.CTk()
     app = SignAIModernApp(root)
     root.protocol("WM_DELETE_WINDOW", app.close)
     root.mainloop()

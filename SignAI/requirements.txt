@@ -113,3 +113,5 @@ wcwidth @ file:///Users/ktietz/demo/mc3/conda-bld/wcwidth_1629357192024/work
 Werkzeug==2.3.3
 wrapt==1.12.1
 zipp==3.15.0
+customtkinter>=6.0.0
+
