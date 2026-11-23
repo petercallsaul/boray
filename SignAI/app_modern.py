@@ -19,7 +19,7 @@ import numpy as np
 import mediapipe as mp
 from tkinter import (
     Tk, Frame, Label, Entry, Button, Text, Canvas, Scrollbar,
-    Scale, HORIZONTAL, END, StringVar, BooleanVar, DoubleVar
+    Scale, HORIZONTAL, END, StringVar, BooleanVar, DoubleVar, Toplevel
 )
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 
@@ -282,8 +282,16 @@ class SignAIModernApp:
     def __init__(self, root, start_loop=True):
         self.root = root
         self.root.title("SignAI - Clinical Translation Workstation")
-        self.root.geometry("1340x740")
-        self.root.minsize(1240, 680)
+
+        # Adaptive window geometry centered on display
+        screen_w = self.root.winfo_screenwidth()
+        screen_h = self.root.winfo_screenheight()
+        win_w = min(1360, max(1120, screen_w - 60))
+        win_h = min(740, max(640, screen_h - 90))
+        pos_x = max(0, (screen_w - win_w) // 2)
+        pos_y = max(0, (screen_h - win_h) // 2)
+        self.root.geometry(f"{win_w}x{win_h}+{pos_x}+{pos_y}")
+        self.root.minsize(1080, 600)
         self.root.configure(bg="#09090b")
 
         # Core State
@@ -311,21 +319,21 @@ class SignAIModernApp:
 
         # Load Reference Chart Posters
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        dental_img_path = os.path.join(base_dir, "images", "dental_signs.png")
-        alpha_img_path = os.path.join(base_dir, "images", "arabic_alphabet.jpg")
+        self.dental_img_path = os.path.join(base_dir, "images", "dental_signs.png")
+        self.alpha_img_path = os.path.join(base_dir, "images", "arabic_alphabet.jpg")
 
         self.photo_dental = None
         self.photo_alphabet = None
-        if os.path.exists(dental_img_path):
+        if os.path.exists(self.dental_img_path):
             try:
-                chart_d = Image.open(dental_img_path).resize((340, 540), Image.Resampling.LANCZOS)
+                chart_d = Image.open(self.dental_img_path).resize((320, 500), Image.Resampling.LANCZOS)
                 self.photo_dental = ImageTk.PhotoImage(chart_d, master=self.root)
             except Exception:
                 pass
 
-        if os.path.exists(alpha_img_path):
+        if os.path.exists(self.alpha_img_path):
             try:
-                chart_a = Image.open(alpha_img_path).resize((340, 540), Image.Resampling.LANCZOS)
+                chart_a = Image.open(self.alpha_img_path).resize((320, 500), Image.Resampling.LANCZOS)
                 self.photo_alphabet = ImageTk.PhotoImage(chart_a, master=self.root)
             except Exception:
                 pass
@@ -369,6 +377,7 @@ class SignAIModernApp:
         self.root.bind_all("<Key-m>", self._toggle_mode)
         self.root.bind_all("<Key-M>", self._toggle_mode)
         self.root.bind_all("<F1>", self._toggle_mode)
+        self.root.bind_all("<F2>", lambda e: self._open_guide_modal())
 
         # Start continuous video loop
         self.is_running = start_loop
@@ -432,7 +441,21 @@ class SignAIModernApp:
             pady=4,
             command=self._toggle_mode
         )
-        self.btn_mode_toggle.pack(side="right", padx=12)
+        self.btn_mode_toggle.pack(side="right", padx=10)
+
+        self.btn_guide = Button(
+            nav_frame,
+            text="دليل الإشارات [F2]",
+            font=("Segoe UI", 9, "bold"),
+            bg="#27272A",
+            fg="#E4E4E7",
+            activebackground="#3F3F46",
+            relief="flat",
+            padx=10,
+            pady=4,
+            command=self._open_guide_modal
+        )
+        self.btn_guide.pack(side="right", padx=6)
 
         self.btn_tts_toggle = Button(
             nav_frame,
@@ -503,7 +526,61 @@ class SignAIModernApp:
         )
         self.slider_conf.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(2, 6))
 
-        # Column 2: Composer & Clinical Dialogue (Center, ~440px)
+        # Column 3: Live Sign Reference Poster (Right, ~340px - DOCKED FIRST so it is NEVER clipped)
+        col_poster = Frame(main_container, bg="#141416", highlightbackground="#27272a", highlightthickness=1)
+        col_poster.pack(side="right", fill="both", expand=False, padx=(6, 0), pady=4)
+
+        header_poster = Frame(col_poster, bg="#141416")
+        header_poster.pack(fill="x", padx=8, pady=(6, 2))
+
+        lbl_guide_badge = Label(
+            header_poster,
+            text="دليل الإشارات التفاعلي (Gestures Guide)",
+            font=("Segoe UI", 9, "bold"),
+            fg="#A1A1AA",
+            bg="#141416"
+        )
+        lbl_guide_badge.pack(anchor="center")
+
+        self.lbl_chart_title = Label(
+            header_poster,
+            text="دليل إشارات عيادة الأسنان المعتمدة",
+            font=("Segoe UI", 10, "bold"),
+            fg="#10B981",
+            bg="#141416"
+        )
+        self.lbl_chart_title.pack(anchor="center", pady=(2, 2))
+
+        self.lbl_chart_sub = Label(
+            header_poster,
+            text="تحديث تلقائي مع الوضع [Tab / M]",
+            font=("Segoe UI", 8),
+            fg="#71717A",
+            bg="#141416"
+        )
+        self.lbl_chart_sub.pack(anchor="center")
+
+        self.lbl_reference_chart = Label(col_poster, bg="#141416")
+        if self.photo_dental is not None:
+            self.lbl_reference_chart.configure(image=self.photo_dental)
+            self.lbl_reference_chart.image = self.photo_dental
+        self.lbl_reference_chart.pack(padx=8, pady=4)
+
+        btn_modal_guide = Button(
+            col_poster,
+            text="عرض الدليل بالحجم الكامل [F2]",
+            font=("Segoe UI", 8, "bold"),
+            bg="#27272A",
+            fg="#F4F4F5",
+            activebackground="#3F3F46",
+            relief="flat",
+            padx=8,
+            pady=3,
+            command=self._open_guide_modal
+        )
+        btn_modal_guide.pack(fill="x", padx=12, pady=(2, 6))
+
+        # Column 2: Composer & Clinical Dialogue (Center, flexes to fill available space)
         col_center = Frame(main_container, bg="#141416", highlightbackground="#27272a", highlightthickness=1)
         col_center.pack(side="left", fill="both", expand=True, padx=6, pady=4)
 
@@ -668,25 +745,6 @@ class SignAIModernApp:
             relief="flat", padx=6, pady=2, command=self._clear_transcript
         ).pack(side="left", padx=2)
 
-        # Column 3: Live Sign Reference Poster (Right, ~350px)
-        col_poster = Frame(main_container, bg="#141416", highlightbackground="#27272a", highlightthickness=1)
-        col_poster.pack(side="right", fill="both", expand=False, padx=(6, 0), pady=4)
-
-        self.lbl_chart_title = Label(
-            col_poster,
-            text="دليل إشارات عيادة الأسنان المعتمدة",
-            font=("Segoe UI", 10, "bold"),
-            fg="#10B981",
-            bg="#141416"
-        )
-        self.lbl_chart_title.pack(anchor="center", padx=8, pady=(8, 4))
-
-        self.lbl_reference_chart = Label(col_poster, bg="#141416")
-        if self.photo_dental is not None:
-            self.lbl_reference_chart.configure(image=self.photo_dental)
-            self.lbl_reference_chart.image = self.photo_dental
-        self.lbl_reference_chart.pack(padx=8, pady=4)
-
     def _build_bottom_statusbar(self):
         status_bar = Frame(self.root, bg="#141416", height=28, highlightbackground="#27272a", highlightthickness=1)
         status_bar.pack(side="bottom", fill="x", padx=12, pady=(0, 6))
@@ -728,6 +786,8 @@ class SignAIModernApp:
                 self.lbl_reference_chart.image = self.photo_alphabet
             if hasattr(self, 'lbl_chart_title'):
                 self.lbl_chart_title.config(text="لوحة الحروف الأبجدية (31 إشارة)", fg="#0284C7")
+            if hasattr(self, 'lbl_chart_sub'):
+                self.lbl_chart_sub.config(text="وضع التهجئة بالأبجدية | [Tab/M] للكلمات")
             if hasattr(self, 'f_quick_words'):
                 self.f_quick_words.pack_forget()
             if hasattr(self, 'f_quick_alpha'):
@@ -744,6 +804,8 @@ class SignAIModernApp:
                 self.lbl_reference_chart.image = self.photo_dental
             if hasattr(self, 'lbl_chart_title'):
                 self.lbl_chart_title.config(text="لوحة إشارات عيادة الأسنان (8 إشارات)", fg="#10B981")
+            if hasattr(self, 'lbl_chart_sub'):
+                self.lbl_chart_sub.config(text="إشارات سريرية مباشرة | [Tab/M] للحروف")
             if hasattr(self, 'f_quick_alpha'):
                 self.f_quick_alpha.pack_forget()
             if hasattr(self, 'f_quick_words'):
@@ -755,6 +817,107 @@ class SignAIModernApp:
         self.sign_already_committed = False
         if event is not None:
             return "break"
+
+    def _open_guide_modal(self, event=None):
+        """Opens a dedicated high-resolution visual reference guide modal."""
+        modal = Toplevel(self.root)
+        modal.title("SignAI - دليل إشارات لغة الإشارة المصرية الكامل")
+        modal.geometry("900x780")
+        modal.configure(bg="#09090B")
+        modal.minsize(650, 600)
+        modal.transient(self.root)
+
+        # Header
+        top_bar = Frame(modal, bg="#141416", highlightbackground="#27272A", highlightthickness=1)
+        top_bar.pack(fill="x", padx=12, pady=10)
+
+        Label(
+            top_bar,
+            text="دليل الإشارات الاسترشادي الكامل (ArSL Visual Guide)",
+            font=("Segoe UI", 12, "bold"),
+            fg="#F4F4F5",
+            bg="#141416",
+            padx=12,
+            pady=8
+        ).pack(side="right")
+
+        # Tab switch buttons
+        btn_frame = Frame(top_bar, bg="#141416")
+        btn_frame.pack(side="left", padx=10, pady=6)
+
+        content_frame = Frame(modal, bg="#09090B")
+        content_frame.pack(fill="both", expand=True, padx=12, pady=(0, 10))
+
+        img_label = Label(content_frame, bg="#09090B")
+        img_label.pack(fill="both", expand=True)
+
+        modal_images = {}
+        try:
+            if hasattr(self, 'dental_img_path') and os.path.exists(self.dental_img_path):
+                img_d_full = Image.open(self.dental_img_path)
+                img_d_full.thumbnail((840, 660), Image.Resampling.LANCZOS)
+                modal_images['dental'] = ImageTk.PhotoImage(img_d_full, master=modal)
+        except Exception:
+            pass
+
+        try:
+            if hasattr(self, 'alpha_img_path') and os.path.exists(self.alpha_img_path):
+                img_a_full = Image.open(self.alpha_img_path)
+                img_a_full.thumbnail((840, 660), Image.Resampling.LANCZOS)
+                modal_images['alpha'] = ImageTk.PhotoImage(img_a_full, master=modal)
+        except Exception:
+            pass
+
+        def show_dental():
+            btn_tab_d.config(bg="#10B981", fg="#09090B")
+            btn_tab_a.config(bg="#27272A", fg="#E4E4E7")
+            if 'dental' in modal_images:
+                img_label.configure(image=modal_images['dental'])
+                img_label.image = modal_images['dental']
+
+        def show_alpha():
+            btn_tab_a.config(bg="#0284C7", fg="#FFFFFF")
+            btn_tab_d.config(bg="#27272A", fg="#E4E4E7")
+            if 'alpha' in modal_images:
+                img_label.configure(image=modal_images['alpha'])
+                img_label.image = modal_images['alpha']
+
+        btn_tab_d = Button(
+            btn_frame,
+            text="إشارات عيادة الأسنان (8 إشارات)",
+            font=("Segoe UI", 9, "bold"),
+            bg="#10B981",
+            fg="#09090B",
+            activebackground="#059669",
+            relief="flat",
+            padx=10,
+            pady=4,
+            command=show_dental
+        )
+        btn_tab_d.pack(side="left", padx=4)
+
+        btn_tab_a = Button(
+            btn_frame,
+            text="الحروف الأبجدية (31 إشارة)",
+            font=("Segoe UI", 9, "bold"),
+            bg="#27272A",
+            fg="#E4E4E7",
+            activebackground="#0284C7",
+            relief="flat",
+            padx=10,
+            pady=4,
+            command=show_alpha
+        )
+        btn_tab_a.pack(side="left", padx=4)
+
+        # Show current mode initially
+        if self.current_mode == "WORDS":
+            show_dental()
+        else:
+            show_alpha()
+
+        modal.bind("<Escape>", lambda e: modal.destroy())
+        return modal
 
     def _toggle_tts(self):
         enabled = self.tts_engine.toggle()

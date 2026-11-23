@@ -65,5 +65,12 @@ class TestIntegration(unittest.TestCase):
         self.assertEqual(messages[0]["text"], "افتح فمك من فضلك")
         self.assertEqual(messages[0]["role"], "doctor")
 
+    def test_gestures_guide_modal(self):
+        modal = self.app._open_guide_modal()
+        self.assertIsNotNone(modal)
+        self.assertTrue(modal.winfo_exists())
+        self.assertIn("دليل إشارات", modal.title())
+        modal.destroy()
+
 if __name__ == '__main__':
     unittest.main()
